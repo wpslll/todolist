@@ -8,6 +8,18 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type DataBase struct {
+	Conn *pgx.Conn
+	Ctx context.Context
+}
+
+func NewDB(conn *pgx.Conn, ctx context.Context) DataBase{
+	return DataBase {
+		Conn: conn,
+		Ctx: ctx,
+	}
+}
+
 func CheckConnection(ctx context.Context) (*pgx.Conn, error){
 	if err := godotenv.Load(); err != nil {
 		panic(err)

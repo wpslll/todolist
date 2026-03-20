@@ -3,21 +3,22 @@ package todo
 import "time"
 
 type Task struct {
-	Title        string
-	Description  string
-	IsCompleted  bool
+	Title       string
+	Description string
+	IsCompleted bool
 
-	CreatedAt    time.Time
+	CreatedAt   time.Time
 	CompletedAt *time.Time
 }
 
 func NewTask(title string, description string) Task {
-	return Task {
-		Title: title,
+
+	return Task{
+		Title:       title,
 		Description: description,
 		IsCompleted: false,
 
-		CreatedAt: time.Now(),
+		CreatedAt:   time.Now(),
 		CompletedAt: nil,
 	}
 }

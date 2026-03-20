@@ -1,15 +1,12 @@
 package psql
 
 import (
-	"context"
-
-	"github.com/jackc/pgx/v5"
 )
 
-func Delete(ctx context.Context, conn *pgx.Conn, id int) error {
+func (db *DataBase) Delete(title string) error {
 	query := `DELETE FROM Tasks
-	WHERE id = $1
+	WHERE title = $1
 	`
-	_, err := conn.Exec(ctx, query, id)
+	_, err := db.Conn.Exec(db.Ctx, query, title)
 	return err
 }

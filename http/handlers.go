@@ -89,7 +89,10 @@ func (h *HttpHandlers) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HttpHandlers) HandleGetAllTasks(w http.ResponseWriter, r *http.Request) {
-	tasks := h.todoList.ListTasks()
+	tasks, err := h.todoList.ListTasks()
+	if err != nil {
+		fmt.Println("Failed to get tasks from db: ", err)
+	}
 	b, err := json.MarshalIndent(tasks, "", "    ")
 	if err != nil {
 		panic(err)
@@ -102,7 +105,11 @@ func (h *HttpHandlers) HandleGetAllTasks(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *HttpHandlers) HandleGetAllUncompletedTasks(w http.ResponseWriter, r *http.Request) {
-	uncompletedTasks := h.todoList.ListUncompletedTasks()
+	uncompletedTasks, err := h.todoList.ListUncompletedTasks()
+	if err != nil {
+		fmt.Println("Failed to get uncompleted tasks from db: ", err)
+		return 
+	}
 	b, err := json.MarshalIndent(uncompletedTasks, "", "    ")
 	if err != nil {
 		panic(err)

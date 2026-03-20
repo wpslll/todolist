@@ -1,15 +1,22 @@
 package psql
 
-import (
-	"context"
 
-	"github.com/jackc/pgx/v5"
-)
-
-func Select(ctx context.Context, conn *pgx.Conn) error {
+func (db *DataBase) Select() (map[string]TaskDto, error) {
 	query := `SELECT title, description, isCompleted, createdAt, completedAt
 	FROM Tasks
 	`
-	_, err := conn.Exec(ctx, query)
-	return err
+	list := make(map[string]TaskDto)
+	rows, err := db.Conn.Query(db.Ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var task TaskDto
+		if err := rows.Scan(&task.Title, &task.Description, &task.IsCompleted, &task.CreatedAt, &task.CompletedAt); err != nil {
+			panic(err)
+		}
+		list[task.Title] = task
+	}
+	return list, err
 }

@@ -1,12 +1,9 @@
 package psql
 
 import (
-	"context"
-
-	"github.com/jackc/pgx/v5"
 )
 
-func CreateTable(conn *pgx.Conn, ctx context.Context) error{
+func (db *DataBase) CreateTable() error{
 	query := `CREATE TABLE Tasks (
 		id SERIAL PRIMARY KEY,
 		title VARCHAR(200) NOT NULL,
@@ -15,6 +12,6 @@ func CreateTable(conn *pgx.Conn, ctx context.Context) error{
 		createdAt TIMESTAMP NOT NULL,
 		completedAt TIMESTAMP
 	);`
-	_, err := conn.Exec(ctx, query)
+	_, err := db.Conn.Exec(db.Ctx, query)
 	return err
 }
