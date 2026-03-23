@@ -3,7 +3,7 @@ services:
         build: .
         container_name: application_container
         ports:
-            - "5050:5050"
+            - "5050:9091"
         depends_on:
             postgres:
                 condition: service_healthy

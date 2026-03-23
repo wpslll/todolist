@@ -15,6 +15,7 @@ func main() {
 		fmt.Println("Failed to connect to database: ", err)
 	}
 	db := psql.NewDB(conn, ctx)
+	db.CreateTable()
 	todoList := todo.NewList(db)
 	httpHandler := http.NewHttpHandler(todoList)
 	httpserver := http.NewHttpServer(httpHandler)

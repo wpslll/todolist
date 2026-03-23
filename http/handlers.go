@@ -179,3 +179,8 @@ func (h *HttpHandlers) HandleDeleteTask(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 }
+
+func (h *HttpHandlers) HandleHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+    w.Write([]byte("OK"))
+}

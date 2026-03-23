@@ -25,7 +25,7 @@ func (s *HttpServer) StartServer() error {
 	router.Path("/tasks").Methods("GET").HandlerFunc(s.httpHandlers.HandleGetAllTasks)
 	router.Path("/tasks/{title}").Methods("PATCH").HandlerFunc(s.httpHandlers.HandleCompleteTask)
 	router.Path("/tasks/{title}").Methods("DELETE").HandlerFunc(s.httpHandlers.HandleDeleteTask)
-
+	router.Path("/health").Methods("GET").HandlerFunc(s.httpHandlers.HandleHealth)
 	if err := http.ListenAndServe(":9091", router); err != nil {
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
