@@ -1,7 +1,5 @@
 package psql
 
-
-
 func (db *DataBase) Select_title(title string) (TaskDto, error) {
 	query := `SELECT title, description, isCompleted, createdAt, completedAt
 	FROM Tasks

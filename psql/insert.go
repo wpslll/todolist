@@ -15,7 +15,6 @@ func (db *DataBase) Insert(
 	title, description, isCompleted, createdAt, completedAt
 	)
 	VALUES($1, $2, $3, $4, $5)
-	RETURNING title, description, isCompleted, createdAt, completedAt
 	`
 	_, err := db.Conn.Exec(db.Ctx, query, title, description, isCompleted, createdAt, completedAt)
 	return err

@@ -1,9 +1,6 @@
 package psql
 
-import (
-)
-
-func (db *DataBase) CreateTable() error{
+func (db *DataBase) CreateTableTasks() error{
 	query := `CREATE TABLE Tasks (
 		id SERIAL PRIMARY KEY,
 		title VARCHAR(200) NOT NULL,

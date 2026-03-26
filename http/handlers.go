@@ -1,6 +1,7 @@
 package http
 
 import (
+	"backend/middleware"
 	"backend/todo"
 	"encoding/json"
 	"errors"
@@ -183,4 +184,79 @@ func (h *HttpHandlers) HandleDeleteTask(w http.ResponseWriter, r *http.Request) 
 func (h *HttpHandlers) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
     w.Write([]byte("OK"))
+}
+
+func (h *HttpHandlers) HandleRegistration(w http.ResponseWriter, r *http.Request) {
+	var userdto UserDTO
+	if err := json.NewDecoder(r.Body).Decode(&userdto); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	if err := userdto.ValidateUser(); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	if err := h.todoList.NewUser(userdto.login, userdto.password); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *HttpHandlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
+	var userdto UserDTO
+	if err := json.NewDecoder(r.Body).Decode(&userdto); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	if err := userdto.ValidateUser(); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	id, err := h.todoList.FindUser(userdto.login, userdto.password)
+	if err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	tokenString, err := middleware.CreateToken(id)
+	if err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusInternalServerError)
+		return
+	}
+	b, err := json.MarshalIndent(tokenString, "", "    ")
+	if err != nil {
+		fmt.Println("Failed to marshal string: ", err)
+		return
+	}
+	if _, err := w.Write(b); err != nil {
+		fmt.Println("Failed to write response: ", err)
+	}
 }

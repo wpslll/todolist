@@ -2,6 +2,7 @@ package todo
 
 import (
 	"backend/psql"
+	"errors"
 	"time"
 )
 
@@ -96,4 +97,22 @@ func (l *List) DeleteTask(title string) error {
 		return err
 	}
 	return nil
+}
+
+func (l *List) NewUser(login, password string) error {
+	if err := l.db.InsertUser(login, password); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (l *List) FindUser(login, password string) (int, error) {
+	id, err := l.db.SelectUser(login, password)
+	if err != nil {
+		return -1, err
+	}
+	if id == -1 {
+		return -1, errors.New("No such user")
+	}
+	return id, nil
 }

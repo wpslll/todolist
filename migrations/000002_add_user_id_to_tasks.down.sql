@@ -1,0 +1,2 @@
+ALTER TABLE Tasks
+DROP COLUMN IF EXISTS user_id;
