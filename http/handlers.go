@@ -1,6 +1,7 @@
 package http
 
 import (
+	"backend/middleware"
 	"backend/todo"
 	"encoding/json"
 	"errors"
@@ -89,7 +90,10 @@ func (h *HttpHandlers) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HttpHandlers) HandleGetAllTasks(w http.ResponseWriter, r *http.Request) {
-	tasks := h.todoList.ListTasks()
+	tasks, err := h.todoList.ListTasks()
+	if err != nil {
+		fmt.Println("Failed to get tasks from db: ", err)
+	}
 	b, err := json.MarshalIndent(tasks, "", "    ")
 	if err != nil {
 		panic(err)
@@ -102,7 +106,11 @@ func (h *HttpHandlers) HandleGetAllTasks(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *HttpHandlers) HandleGetAllUncompletedTasks(w http.ResponseWriter, r *http.Request) {
-	uncompletedTasks := h.todoList.ListUncompletedTasks()
+	uncompletedTasks, err := h.todoList.ListUncompletedTasks()
+	if err != nil {
+		fmt.Println("Failed to get uncompleted tasks from db: ", err)
+		return 
+	}
 	b, err := json.MarshalIndent(uncompletedTasks, "", "    ")
 	if err != nil {
 		panic(err)
@@ -170,5 +178,85 @@ func (h *HttpHandlers) HandleDeleteTask(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
 		}
 		return
+	}
+}
+
+func (h *HttpHandlers) HandleHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+    w.Write([]byte("OK"))
+}
+
+func (h *HttpHandlers) HandleRegistration(w http.ResponseWriter, r *http.Request) {
+	var userdto UserDTO
+	if err := json.NewDecoder(r.Body).Decode(&userdto); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	if err := userdto.ValidateUser(); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	if err := h.todoList.NewUser(userdto.login, userdto.password); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *HttpHandlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
+	var userdto UserDTO
+	if err := json.NewDecoder(r.Body).Decode(&userdto); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	if err := userdto.ValidateUser(); err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	id, err := h.todoList.FindUser(userdto.login, userdto.password)
+	if err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusBadRequest)
+		return
+	}
+	tokenString, err := middleware.CreateToken(id)
+	if err != nil {
+		errdto := ErrorDTO {
+			Message: err.Error(),
+			Time: time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusInternalServerError)
+		return
+	}
+	b, err := json.MarshalIndent(tokenString, "", "    ")
+	if err != nil {
+		fmt.Println("Failed to marshal string: ", err)
+		return
+	}
+	if _, err := w.Write(b); err != nil {
+		fmt.Println("Failed to write response: ", err)
 	}
 }

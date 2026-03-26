@@ -1,93 +1,118 @@
 package todo
 
-import "sync"
+import (
+	"backend/psql"
+	"errors"
+	"time"
+)
 
 type List struct {
-	tasks map[string]Task
-	mtx   sync.RWMutex
+	db psql.DataBase
 }
 
-func NewList() *List {
+func NewList(Db psql.DataBase) *List {
 	return &List{
-		tasks: make(map[string]Task),
+		db: Db,
 	}
 }
 
-func (l *List) ListTasks() map[string]Task {
-	l.mtx.RLock()
-	defer l.mtx.RUnlock()
-	tmp := make(map[string]Task, len(l.tasks))
-	for k, v := range l.tasks {
-		tmp[k] = v
+func convertToTask(taskDB psql.TaskDto) Task {
+	var task Task
+	task.Title = taskDB.Title
+	task.Description = taskDB.Description
+	task.IsCompleted = taskDB.IsCompleted
+	task.CreatedAt = taskDB.CreatedAt
+	task.CompletedAt = taskDB.CompletedAt
+	return task
+}
+
+func (l *List) ListTasks() (map[string]Task, error) {
+    dbTasks, err := l.db.Select()
+    if err != nil {
+        return nil, err 
+    }
+    
+    tmp := make(map[string]Task)
+    for k, v := range dbTasks {
+        tmp[k] = convertToTask(v)
 	}
-	return tmp
+    return tmp, nil
 }
 
 func (l *List) GetTask(title string) (Task, error) {
-	l.mtx.RLock()
-	defer l.mtx.RUnlock()
-	task, ok := l.tasks[title]
-	if !ok {
-		return Task{}, TaskNotFound
+	v, err := l.db.Select_title(title)
+	if err != nil {
+		return Task{}, err
 	}
+	task := convertToTask(v)
 	return task, nil
 }
 
-func (l *List) ListUncompletedTasks() map[string]Task {
-	l.mtx.RLock()
-	defer l.mtx.RUnlock()
+func (l *List) ListUncompletedTasks() (map[string]Task, error) {
 	tmp := make(map[string]Task)
-
-	for title, task := range l.tasks {
-		if !task.IsCompleted {
-			tmp[title] = task
-		}
+	dbTasks, err := l.db.Select_uncompleted()
+	if err != nil {
+		return nil, err
 	}
-	return tmp
+	for k, v := range dbTasks {
+		tmp[k] = convertToTask(v)
+	}
+	return tmp, nil
 }
 
 func (l *List) AddTask(task Task) error {
-	l.mtx.Lock()
-	defer l.mtx.Unlock()
-	if _, ok := l.tasks[task.Title]; ok {
-		return TaskAlreadyExists
+	err := l.db.Insert(task.Title, task.Description, task.IsCompleted, task.CreatedAt, task.CompletedAt)
+	if err != nil {
+		return err
 	}
-	l.tasks[task.Title] = task
-
 	return nil
 }
 
 func (l *List) CompleteTask(title string) (Task, error) {
-	l.mtx.Lock()
-	defer l.mtx.Unlock()
-	task, ok := l.tasks[title]
-	if !ok {
-		return Task{}, TaskNotFound
+	if err := l.db.Complete_Uncomplete(title, true, time.Now()); err != nil {
+		return Task{}, err
 	}
-	task.Complete()
-	l.tasks[title] = task
-	return l.tasks["title"], nil
+	v, err := l.db.Select_title(title)
+	if err != nil {
+		return Task{}, err
+	}
+	task := convertToTask(v)
+	return task, nil
 }
 
 func (l *List) UncompleteTask(title string) (Task, error) {
-	l.mtx.Lock()
-	defer l.mtx.Unlock()
-	task, ok := l.tasks[title]
-	if !ok {
-		return Task{}, TaskNotFound
+	if err := l.db.Complete_Uncomplete(title, false, time.Now()); err != nil {
+		return Task{}, err
 	}
-	task.Uncomplete()
-	l.tasks[title] = task
-	return l.tasks[title], nil
+	v, err := l.db.Select_title(title)
+	if err != nil {
+		return Task{}, err
+	}
+	task := convertToTask(v)
+	return task, nil
 }
 
 func (l *List) DeleteTask(title string) error {
-	l.mtx.Lock()
-	defer l.mtx.Unlock()
-	_, ok := l.tasks[title]
-	if !ok {
-		return TaskNotFound
+	if err := l.db.Delete(title); err != nil {
+		return err
 	}
-	delete(l.tasks, title)
 	return nil
+}
+
+func (l *List) NewUser(login, password string) error {
+	if err := l.db.InsertUser(login, password); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (l *List) FindUser(login, password string) (int, error) {
+	id, err := l.db.SelectUser(login, password)
+	if err != nil {
+		return -1, err
+	}
+	if id == -1 {
+		return -1, errors.New("No such user")
+	}
+	return id, nil
 }
