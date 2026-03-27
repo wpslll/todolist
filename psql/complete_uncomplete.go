@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-func (db *DataBase)Complete_Uncomplete(title string, isCompleted bool, completedAt time.Time) error{
+func (db *DataBase)Complete_Uncomplete(title string, isCompleted bool, completedAt *time.Time) error{
 	query := `UPDATE Tasks
 	SET isCompleted = $2, completedAt = $3
 	WHERE title = $1

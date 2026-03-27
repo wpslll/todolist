@@ -15,8 +15,8 @@ type TaskDTO struct {
 }
 
 type UserDTO struct {
-	login 	 string
-	password string
+	Login 	 string
+	Password string
 }
 
 func (t TaskDTO) ValidateForCreate() error {
@@ -43,10 +43,10 @@ func (e ErrorDTO) ToString() string {
 }
 
 func (u *UserDTO) ValidateUser() error {
-	if u.login == "" {
+	if u.Login == "" {
 		return errors.New("Username is empty")
 	}
-	if u.password == "" {
+	if u.Password == "" {
 		return errors.New("Password is empty")
 	}
 	return nil

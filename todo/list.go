@@ -69,7 +69,8 @@ func (l *List) AddTask(task Task) error {
 }
 
 func (l *List) CompleteTask(title string) (Task, error) {
-	if err := l.db.Complete_Uncomplete(title, true, time.Now()); err != nil {
+	time := time.Now()
+	if err := l.db.Complete_Uncomplete(title, true, &time); err != nil {
 		return Task{}, err
 	}
 	v, err := l.db.Select_title(title)
@@ -81,7 +82,7 @@ func (l *List) CompleteTask(title string) (Task, error) {
 }
 
 func (l *List) UncompleteTask(title string) (Task, error) {
-	if err := l.db.Complete_Uncomplete(title, false, time.Now()); err != nil {
+	if err := l.db.Complete_Uncomplete(title, false, nil); err != nil {
 		return Task{}, err
 	}
 	v, err := l.db.Select_title(title)
@@ -115,4 +116,7 @@ func (l *List) FindUser(login, password string) (int, error) {
 		return -1, errors.New("No such user")
 	}
 	return id, nil
+}
+func (l *List) FindUserId(id int) error {
+	return l.db.SelectUserId(id)
 }
