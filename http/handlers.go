@@ -109,7 +109,7 @@ func (h *HttpHandlers) HandleGetAllUncompletedTasks(w http.ResponseWriter, r *ht
 	uncompletedTasks, err := h.todoList.ListUncompletedTasks()
 	if err != nil {
 		fmt.Println("Failed to get uncompleted tasks from db: ", err)
-		return 
+		return
 	}
 	b, err := json.MarshalIndent(uncompletedTasks, "", "    ")
 	if err != nil {
@@ -135,9 +135,9 @@ func (h *HttpHandlers) HandleCompleteTask(w http.ResponseWriter, r *http.Request
 
 	title := mux.Vars(r)["title"]
 
-	var( 
+	var (
 		changedTask todo.Task
-		err error
+		err         error
 	)
 	if completeDTO.Complete {
 		changedTask, err = h.todoList.CompleteTask(title)
@@ -183,31 +183,31 @@ func (h *HttpHandlers) HandleDeleteTask(w http.ResponseWriter, r *http.Request) 
 
 func (h *HttpHandlers) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-    w.Write([]byte("OK"))
+	w.Write([]byte("OK"))
 }
 
 func (h *HttpHandlers) HandleRegistration(w http.ResponseWriter, r *http.Request) {
 	var userdto UserDTO
 	if err := json.NewDecoder(r.Body).Decode(&userdto); err != nil {
-		errdto := ErrorDTO {
+		errdto := ErrorDTO{
 			Message: err.Error(),
-			Time: time.Now(),
+			Time:    time.Now(),
 		}
 		http.Error(w, errdto.ToString(), http.StatusBadRequest)
 		return
 	}
 	if err := userdto.ValidateUser(); err != nil {
-		errdto := ErrorDTO {
+		errdto := ErrorDTO{
 			Message: err.Error(),
-			Time: time.Now(),
+			Time:    time.Now(),
 		}
 		http.Error(w, errdto.ToString(), http.StatusBadRequest)
 		return
 	}
-	if err := h.todoList.NewUser(userdto.login, userdto.password); err != nil {
-		errdto := ErrorDTO {
+	if err := h.todoList.NewUser(userdto.Login, userdto.Password); err != nil {
+		errdto := ErrorDTO{
 			Message: err.Error(),
-			Time: time.Now(),
+			Time:    time.Now(),
 		}
 		http.Error(w, errdto.ToString(), http.StatusBadRequest)
 		return
@@ -218,45 +218,103 @@ func (h *HttpHandlers) HandleRegistration(w http.ResponseWriter, r *http.Request
 func (h *HttpHandlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	var userdto UserDTO
 	if err := json.NewDecoder(r.Body).Decode(&userdto); err != nil {
-		errdto := ErrorDTO {
+		errdto := ErrorDTO{
 			Message: err.Error(),
-			Time: time.Now(),
+			Time:    time.Now(),
 		}
 		http.Error(w, errdto.ToString(), http.StatusBadRequest)
 		return
 	}
 	if err := userdto.ValidateUser(); err != nil {
-		errdto := ErrorDTO {
+		errdto := ErrorDTO{
 			Message: err.Error(),
-			Time: time.Now(),
+			Time:    time.Now(),
 		}
 		http.Error(w, errdto.ToString(), http.StatusBadRequest)
 		return
 	}
-	id, err := h.todoList.FindUser(userdto.login, userdto.password)
+	id, err := h.todoList.FindUser(userdto.Login, userdto.Password)
 	if err != nil {
-		errdto := ErrorDTO {
+		errdto := ErrorDTO{
 			Message: err.Error(),
-			Time: time.Now(),
+			Time:    time.Now(),
 		}
 		http.Error(w, errdto.ToString(), http.StatusBadRequest)
 		return
 	}
-	tokenString, err := middleware.CreateToken(id)
+	accessToken, refreshToken, err := middleware.CreateToken(id)
 	if err != nil {
-		errdto := ErrorDTO {
+		errdto := ErrorDTO{
 			Message: err.Error(),
-			Time: time.Now(),
+			Time:    time.Now(),
 		}
 		http.Error(w, errdto.ToString(), http.StatusInternalServerError)
 		return
 	}
-	b, err := json.MarshalIndent(tokenString, "", "    ")
+	http.SetCookie(w, &http.Cookie{
+		Name:     "accessToken",
+		Value:    accessToken,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   15 * 60,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/refresh",
+		MaxAge:   24 * 60 * 60,
+	})
+}
+
+func (h *HttpHandlers) HandleRefresh(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("refreshToken")
 	if err != nil {
-		fmt.Println("Failed to marshal string: ", err)
+		errdto := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusUnauthorized)
 		return
 	}
-	if _, err := w.Write(b); err != nil {
-		fmt.Println("Failed to write response: ", err)
+	tokenString := cookie.Value
+	accessToken, refreshToken, id, err := middleware.Refresh(tokenString)
+	if err != nil {
+		errdto := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusInternalServerError)
+		return
 	}
+	if err := h.todoList.FindUserId(id); err != nil {
+		errdto := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errdto.ToString(), http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "accessToken",
+		Value:    accessToken,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   15 * 60,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/refresh",
+		MaxAge:   24 * 60 * 60,
+	})
 }
