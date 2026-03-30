@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend/http"
+	"backend/logs"
 	"backend/psql"
 	"backend/todo"
 	"context"
@@ -15,6 +16,11 @@ import (
 )
 
 func main() {
+	logger, logsClose, err := logs.Newlogger("INFO")
+	if err != nil {
+		fmt.Println("Failed to create logger: ", err)
+	}
+	defer logsClose()
 	ctx := context.Background()
 	conn, err := psql.CheckConnection(ctx)
 	if err != nil {
@@ -33,7 +39,7 @@ func main() {
 		fmt.Println("Failed to migrate: ", err)
 	}
 	todoList := todo.NewList(db)
-	httpHandler := http.NewHttpHandler(todoList)
+	httpHandler := http.NewHttpHandler(todoList, logger)
 	httpserver := http.NewHttpServer(httpHandler)
 	if err := httpserver.StartServer(); err != nil {
 		fmt.Println("Failed to start server: ", err)
