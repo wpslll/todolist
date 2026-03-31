@@ -3,10 +3,10 @@ package psql
 import (
 )
 
-func (db *DataBase) Delete(title string) error {
+func (db *DataBase) Delete(id int) error {
 	query := `DELETE FROM Tasks
-	WHERE title = $1
+	WHERE id = $1
 	`
-	_, err := db.Conn.Exec(db.Ctx, query, title)
+	_, err := db.Conn.Exec(db.Ctx, query, id)
 	return err
 }

@@ -18,6 +18,7 @@ func NewList(Db psql.DataBase) *List {
 
 func convertToTask(taskDB psql.TaskDto) Task {
 	var task Task
+	task.Id = taskDB.Id
 	task.Title = taskDB.Title
 	task.Description = taskDB.Description
 	task.IsCompleted = taskDB.IsCompleted
@@ -60,20 +61,19 @@ func (l *List) ListUncompletedTasks() (map[string]Task, error) {
 	return tmp, nil
 }
 
-func (l *List) AddTask(task Task) error {
-	err := l.db.Insert(task.Title, task.Description, task.IsCompleted, task.CreatedAt, task.CompletedAt)
+func (l *List) AddTask(task Task) (Task, error) {
+	taskDto, err := l.db.Insert(task.Title, task.Description, task.IsCompleted, task.CreatedAt, task.CompletedAt)
 	if err != nil {
-		return err
+		return Task{}, err
 	}
-	return nil
+	var tmp Task
+	tmp = convertToTask(taskDto)
+	return tmp, nil
 }
 
-func (l *List) CompleteTask(title string) (Task, error) {
+func (l *List) CompleteTask(id int) (Task, error) {
 	time := time.Now()
-	if err := l.db.Complete_Uncomplete(title, true, &time); err != nil {
-		return Task{}, err
-	}
-	v, err := l.db.Select_title(title)
+	v, err := l.db.Complete_Uncomplete(id, true, &time)
 	if err != nil {
 		return Task{}, err
 	}
@@ -81,11 +81,8 @@ func (l *List) CompleteTask(title string) (Task, error) {
 	return task, nil
 }
 
-func (l *List) UncompleteTask(title string) (Task, error) {
-	if err := l.db.Complete_Uncomplete(title, false, nil); err != nil {
-		return Task{}, err
-	}
-	v, err := l.db.Select_title(title)
+func (l *List) UncompleteTask(id int) (Task, error) {
+	v, err := l.db.Complete_Uncomplete(id, false, nil)
 	if err != nil {
 		return Task{}, err
 	}
@@ -93,8 +90,8 @@ func (l *List) UncompleteTask(title string) (Task, error) {
 	return task, nil
 }
 
-func (l *List) DeleteTask(title string) error {
-	if err := l.db.Delete(title); err != nil {
+func (l *List) DeleteTask(id int) error {
+	if err := l.db.Delete(id); err != nil {
 		return err
 	}
 	return nil

@@ -4,6 +4,8 @@ services:
         container_name: application_container
         ports:
             - "5050:9091"
+        volumes:
+            - ./logs/logFiles:/app/logs/logFiles
         depends_on:
             postgres:
                 condition: service_healthy

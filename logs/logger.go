@@ -19,13 +19,12 @@ func Newlogger(logLevel string) (*zap.Logger, func() error, error) {
 		return nil, nil, err
 	}
 	timestamp := time.Now().UTC()
-	logFilePath := filepath.Join("logFiles", fmt.Sprintf("%s.log", timestamp))
-	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+	logFilePath := filepath.Join("/app/logs/logFiles", fmt.Sprintf("%s.log", timestamp))
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, nil, err
 	}
 	cfg := zap.NewDevelopmentEncoderConfig()
-	cfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	encoder := zapcore.NewConsoleEncoder(cfg)
 	core := zapcore.NewTee(
 		zapcore.NewCore(encoder, zapcore.AddSync(logFile), lvl),

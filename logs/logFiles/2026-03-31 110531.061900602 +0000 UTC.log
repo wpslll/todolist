@@ -1,0 +1,4 @@
+2026-03-31T11:06:57.675Z	[34mINFO[0m	http/handlers.go:335	Reading from cookie
+2026-03-31T11:06:57.676Z	[34mINFO[0m	http/handlers.go:347	Refreshing tokens
+2026-03-31T11:06:57.677Z	[34mINFO[0m	http/handlers.go:358	Finding user
+2026-03-31T11:06:57.679Z	[34mINFO[0m	http/handlers.go:368	Setting cookies
