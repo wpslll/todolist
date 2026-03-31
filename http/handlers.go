@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -47,7 +48,8 @@ func (h *HttpHandlers) HandleCreateTask(w http.ResponseWriter, r *http.Request) 
 	}
 	h.logger.Info("Creating task")
 	todoTask := todo.NewTask(taskDTO.Title, taskDTO.Description)
-	if err := h.todoList.AddTask(todoTask); err != nil {
+	todoTask, err := h.todoList.AddTask(todoTask)
+	if err != nil {
 		errDTO := ErrorDTO{
 			Message: err.Error(),
 			Time:    time.Now(),
@@ -156,17 +158,23 @@ func (h *HttpHandlers) HandleCompleteTask(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	title := mux.Vars(r)["title"]
-
-	var (
-		changedTask todo.Task
-		err         error
-	)
+	idString := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to decode req body")
+		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		return
+	}
+	var changedTask todo.Task
 	h.logger.Info("Completing or Uncompleting task")
 	if completeDTO.Complete {
-		changedTask, err = h.todoList.CompleteTask(title)
+		changedTask, err = h.todoList.CompleteTask(id)
 	} else {
-		changedTask, err = h.todoList.UncompleteTask(title)
+		changedTask, err = h.todoList.UncompleteTask(id)
 	}
 
 	if err != nil {
@@ -192,9 +200,19 @@ func (h *HttpHandlers) HandleCompleteTask(w http.ResponseWriter, r *http.Request
 }
 
 func (h *HttpHandlers) HandleDeleteTask(w http.ResponseWriter, r *http.Request) {
-	title := mux.Vars(r)["title"]
+	idString := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to decode req body")
+		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		return
+	}
 	h.logger.Info("Deleting task")
-	if err := h.todoList.DeleteTask(title); err != nil {
+	if err := h.todoList.DeleteTask(id); err != nil {
 		errDTO := ErrorDTO{
 			Message: err.Error(),
 			Time:    time.Now(),
