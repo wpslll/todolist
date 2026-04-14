@@ -1,9 +1,10 @@
 package psql
 
 
-func (db *DataBase) Select() (map[string]TaskDto, error) {
+func (db *DataBase) Select(id int) (map[string]TaskDto, error) {
 	query := `SELECT id, title, description, isCompleted, createdAt, completedAt
 	FROM Tasks
+	WHERE user_id = $1
 	`
 	list := make(map[string]TaskDto)
 	rows, err := db.Conn.Query(db.Ctx, query)

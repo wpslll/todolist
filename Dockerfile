@@ -5,6 +5,6 @@ WORKDIR /app
 COPY . .
 
 RUN go mod tidy
-RUN go build -o /app/exe main.go
+RUN GOOS=linux GOARCH=amd64 go build -o /app/exe main.go
 
-CMD [ "/app/exe" ]
+CMD ["/app/exe"]

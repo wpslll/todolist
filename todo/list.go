@@ -27,8 +27,8 @@ func convertToTask(taskDB psql.TaskDto) Task {
 	return task
 }
 
-func (l *List) ListTasks() (map[string]Task, error) {
-    dbTasks, err := l.db.Select()
+func (l *List) ListTasks(id int) (map[string]Task, error) {
+    dbTasks, err := l.db.Select(id)
     if err != nil {
         return nil, err 
     }
@@ -40,8 +40,8 @@ func (l *List) ListTasks() (map[string]Task, error) {
     return tmp, nil
 }
 
-func (l *List) GetTask(title string) (Task, error) {
-	v, err := l.db.Select_title(title)
+func (l *List) GetTask(title string, userId int) (Task, error) {
+	v, err := l.db.Select_title(title, userId)
 	if err != nil {
 		return Task{}, err
 	}
@@ -49,9 +49,9 @@ func (l *List) GetTask(title string) (Task, error) {
 	return task, nil
 }
 
-func (l *List) ListUncompletedTasks() (map[string]Task, error) {
+func (l *List) ListUncompletedTasks(userId int) (map[string]Task, error) {
 	tmp := make(map[string]Task)
-	dbTasks, err := l.db.Select_uncompleted()
+	dbTasks, err := l.db.Select_uncompleted(userId)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +61,8 @@ func (l *List) ListUncompletedTasks() (map[string]Task, error) {
 	return tmp, nil
 }
 
-func (l *List) AddTask(task Task) (Task, error) {
-	taskDto, err := l.db.Insert(task.Title, task.Description, task.IsCompleted, task.CreatedAt, task.CompletedAt)
+func (l *List) AddTask(task Task, userId int) (Task, error) {
+	taskDto, err := l.db.Insert(task.Title, task.Description, task.IsCompleted, task.CreatedAt, task.CompletedAt, userId)
 	if err != nil {
 		return Task{}, err
 	}
@@ -71,9 +71,9 @@ func (l *List) AddTask(task Task) (Task, error) {
 	return tmp, nil
 }
 
-func (l *List) CompleteTask(id int) (Task, error) {
+func (l *List) CompleteTask(id int, userId int) (Task, error) {
 	time := time.Now()
-	v, err := l.db.Complete_Uncomplete(id, true, &time)
+	v, err := l.db.Complete_Uncomplete(id, true, &time, userId)
 	if err != nil {
 		return Task{}, err
 	}
@@ -81,8 +81,8 @@ func (l *List) CompleteTask(id int) (Task, error) {
 	return task, nil
 }
 
-func (l *List) UncompleteTask(id int) (Task, error) {
-	v, err := l.db.Complete_Uncomplete(id, false, nil)
+func (l *List) UncompleteTask(id int, userId int) (Task, error) {
+	v, err := l.db.Complete_Uncomplete(id, false, nil, userId)
 	if err != nil {
 		return Task{}, err
 	}
@@ -90,8 +90,8 @@ func (l *List) UncompleteTask(id int) (Task, error) {
 	return task, nil
 }
 
-func (l *List) DeleteTask(id int) error {
-	if err := l.db.Delete(id); err != nil {
+func (l *List) DeleteTask(id int, userId int) error {
+	if err := l.db.Delete(id, userId); err != nil {
 		return err
 	}
 	return nil
@@ -114,6 +114,16 @@ func (l *List) FindUser(login, password string) (int, error) {
 	}
 	return id, nil
 }
+
 func (l *List) FindUserId(id int) error {
 	return l.db.SelectUserId(id)
+}
+
+func (l *List) UpdateTask(id int, userId int, title string, description string) (Task, error) {
+	v, err := l.db.UpdateTask(id, userId, title, description)
+	if err != nil {
+		return Task{}, err
+	}
+	task := convertToTask(v)
+	return task, nil
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 type ErrorDTO struct {
@@ -45,6 +46,22 @@ func Refresh(tokenString string) (string, string, int, error) {
 	id := claims.Id
 	accessToken, refreshToken, err := CreateToken(id)
 	return accessToken, refreshToken, id, err
+}
+
+func GetId(tokenString string) (int, error) {
+	token, err := parseToken(tokenString)
+	if err != nil {
+		return -1, err
+	}
+	if !token.Valid {
+		return -1, errors.New("Not valid refresh token, please auth")
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok {
+		return -1, errors.New("No claims")
+	}
+	id := claims.Id
+	return id, nil
 }
 
 func parseToken(tokenString string) (*jwt.Token, error) {
@@ -89,33 +106,47 @@ func CreateToken(id int) (string, string, error) {
 	return accessString, refreshString, nil
 }
 
-func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func AuthMiddleware(next http.HandlerFunc, logger zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			logger.Info("Got hhtp options request")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		logger.Info("Getting access token cookie")
 		cookie, err := r.Cookie("accessToken")
 		if err != nil {
+			logger.Error("Failed to get access token")
 			errdto := ErrorDTO{
 				Message: err.Error(),
 				Time:    time.Now(),
 			}
 			http.Error(w, errdto.ToString(), http.StatusUnauthorized)
+			return
 		}
+		logger.Info("Getting value of access token cookie")
 		tokenString := cookie.Value
+		logger.Info("Parsing token")
 		token, err := parseToken(tokenString)
 		if err != nil {
+			logger.Error("Failed to parse token")
 			errdto := ErrorDTO{
 				Message: err.Error(),
 				Time:    time.Now(),
 			}
 			http.Error(w, errdto.ToString(), http.StatusUnauthorized)
+			return
 		}
 		if !token.Valid {
+			logger.Error("Token is not valid")
 			errdto := ErrorDTO{
 				Message: "Invalid token",
 				Time:    time.Now(),
 			}
 			http.Error(w, errdto.ToString(), http.StatusUnauthorized)
+			return
 		}
-
+		logger.Info("Next function")
 		next(w, r)
 	}
 }
