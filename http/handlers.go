@@ -28,13 +28,34 @@ func NewHttpHandler(todolist *todo.List, log *zap.Logger) *HttpHandlers {
 
 func (h *HttpHandlers) HandleCreateTask(w http.ResponseWriter, r *http.Request) {
 	var taskDTO TaskDTO
+	cookie, err := r.Cookie("accessToken")
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed get cookie")
+		http.Error(w, errDTO.ToString(), http.StatusUnauthorized)
+		return
+	}
+	tokenString := cookie.Value
+	id, err := middleware.GetId(tokenString)
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to get id")
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
+		return
+	}
 	if err := json.NewDecoder(r.Body).Decode(&taskDTO); err != nil {
 		errDTO := ErrorDTO{
 			Message: err.Error(),
 			Time:    time.Now(),
 		}
 		h.logger.Error("Failed to Unmarshal json")
-		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
 		return
 	}
 	if err := taskDTO.ValidateForCreate(); err != nil {
@@ -48,7 +69,7 @@ func (h *HttpHandlers) HandleCreateTask(w http.ResponseWriter, r *http.Request) 
 	}
 	h.logger.Info("Creating task")
 	todoTask := todo.NewTask(taskDTO.Title, taskDTO.Description)
-	todoTask, err := h.todoList.AddTask(todoTask)
+	todotask, err := h.todoList.AddTask(todoTask, id)
 	if err != nil {
 		errDTO := ErrorDTO{
 			Message: err.Error(),
@@ -62,7 +83,7 @@ func (h *HttpHandlers) HandleCreateTask(w http.ResponseWriter, r *http.Request) 
 		}
 		return
 	}
-	b, err := json.MarshalIndent(todoTask, "", "    ")
+	b, err := json.MarshalIndent(todotask, "", "    ")
 	if err != nil {
 		h.logger.Error("Failed to marshal task")
 		panic(err)
@@ -78,7 +99,28 @@ func (h *HttpHandlers) HandleCreateTask(w http.ResponseWriter, r *http.Request) 
 func (h *HttpHandlers) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 	title := mux.Vars(r)["title"]
 	h.logger.Info("Getting task")
-	task, err := h.todoList.GetTask(title)
+	cookie, err := r.Cookie("accessToken")
+	if err != nil {
+		h.logger.Error("Failed to get cookie")
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errDTO.ToString(), http.StatusUnauthorized)
+		return
+	}
+	tokenString := cookie.Value
+	id, err := middleware.GetId(tokenString)
+	if err != nil {
+		h.logger.Error("Failed to get id")
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
+		return
+	}
+	task, err := h.todoList.GetTask(title, id)
 	if err != nil {
 		errDTO := ErrorDTO{
 			Message: err.Error(),
@@ -106,7 +148,28 @@ func (h *HttpHandlers) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HttpHandlers) HandleGetAllTasks(w http.ResponseWriter, r *http.Request) {
-	tasks, err := h.todoList.ListTasks()
+	cookie, err := r.Cookie("accessToken")
+	if err != nil {
+		h.logger.Error("Failed to get cookie")
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		return
+	}
+	tokenString := cookie.Value
+	id, err := middleware.GetId(tokenString)
+	if err != nil {
+		h.logger.Error("Failed to get id from token")
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
+		return
+	}
+	tasks, err := h.todoList.ListTasks(id)
 	if err != nil {
 		h.logger.Error("Failed to get all tasks")
 		fmt.Println("Failed to get tasks from db: ", err)
@@ -125,8 +188,29 @@ func (h *HttpHandlers) HandleGetAllTasks(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *HttpHandlers) HandleGetAllUncompletedTasks(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("accessToken")
+	if err != nil {
+		h.logger.Error("Failed to get cookie")
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errDTO.ToString(), http.StatusUnauthorized)
+		return
+	}
+	tokenString := cookie.Value
+	id, err := middleware.GetId(tokenString)
+	if err != nil {
+		h.logger.Error("Failed to get id")
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
+		return
+	}
 	h.logger.Info("Getting all uncompleted tasks")
-	uncompletedTasks, err := h.todoList.ListUncompletedTasks()
+	uncompletedTasks, err := h.todoList.ListUncompletedTasks(id)
 	if err != nil {
 		h.logger.Error("Failed to get all uncompleted tasks")
 		fmt.Println("Failed to get uncompleted tasks from db: ", err)
@@ -157,7 +241,27 @@ func (h *HttpHandlers) HandleCompleteTask(w http.ResponseWriter, r *http.Request
 		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
 		return
 	}
-
+	cookie, err := r.Cookie("accessToken")
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to decode req body")
+		http.Error(w, errDTO.ToString(), http.StatusUnauthorized)
+		return
+	}
+	tokenString := cookie.Value
+	userId, err := middleware.GetId(tokenString)
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to decode req body")
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
+		return
+	}
 	idString := mux.Vars(r)["id"]
 	id, err := strconv.Atoi(idString)
 	if err != nil {
@@ -172,9 +276,9 @@ func (h *HttpHandlers) HandleCompleteTask(w http.ResponseWriter, r *http.Request
 	var changedTask todo.Task
 	h.logger.Info("Completing or Uncompleting task")
 	if completeDTO.Complete {
-		changedTask, err = h.todoList.CompleteTask(id)
+		changedTask, err = h.todoList.CompleteTask(id, userId)
 	} else {
-		changedTask, err = h.todoList.UncompleteTask(id)
+		changedTask, err = h.todoList.UncompleteTask(id, userId)
 	}
 
 	if err != nil {
@@ -191,7 +295,6 @@ func (h *HttpHandlers) HandleCompleteTask(w http.ResponseWriter, r *http.Request
 		return
 	}
 	b, err := json.MarshalIndent(changedTask, "", "    ")
-
 	if _, err := w.Write(b); err != nil {
 		h.logger.Error("Failed to write response body")
 		fmt.Println("Failed to write response: ", err)
@@ -207,12 +310,33 @@ func (h *HttpHandlers) HandleDeleteTask(w http.ResponseWriter, r *http.Request) 
 			Message: err.Error(),
 			Time:    time.Now(),
 		}
-		h.logger.Error("Failed to decode req body")
+		h.logger.Error("Failed to get id of task")
 		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
 		return
 	}
+	cookie, err := r.Cookie("accessToken")
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to get cookie")
+		http.Error(w, errDTO.ToString(), http.StatusUnauthorized)
+		return
+	}
+	tokenString := cookie.Value
+	userId, err := middleware.GetId(tokenString)
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to get id")
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
+		return
+	}
 	h.logger.Info("Deleting task")
-	if err := h.todoList.DeleteTask(id); err != nil {
+	if err := h.todoList.DeleteTask(id, userId); err != nil {
 		errDTO := ErrorDTO{
 			Message: err.Error(),
 			Time:    time.Now(),
@@ -223,6 +347,78 @@ func (h *HttpHandlers) HandleDeleteTask(w http.ResponseWriter, r *http.Request) 
 		} else {
 			http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
 		}
+		return
+	}
+}
+
+func (h *HttpHandlers) HandleUpdateTask(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("accessToken")
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to get cookie")
+		http.Error(w, errDTO.ToString(), http.StatusUnauthorized)
+		return
+	}
+	tokenString := cookie.Value
+	userId, err := middleware.GetId(tokenString)
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to get id")
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
+		return
+	}
+	idString := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to get id of task")
+		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		return
+	}
+	h.logger.Info("Reading from req body")
+	var taskDto TaskDTO
+	if err := json.NewDecoder(r.Body).Decode(&taskDto); err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to decode req body")
+		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		return
+	}
+	h.logger.Info("Updating task")
+	task, err := h.todoList.UpdateTask(id, userId, taskDto.Title, taskDto.Description)
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to update task")
+		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		return
+	}
+	b, err := json.MarshalIndent(task, "", "	")
+	if err != nil {
+		errDTO := ErrorDTO{
+			Message: err.Error(),
+			Time:    time.Now(),
+		}
+		h.logger.Error("Failed to marshal response")
+		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		return
+	}
+	if _, err := w.Write(b); err != nil {
+		h.logger.Error("Failed to write response body")
+		fmt.Println("Failed to write response: ", err)
 		return
 	}
 }
@@ -316,7 +512,7 @@ func (h *HttpHandlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		Value:    accessToken,
 		HttpOnly: true,
 		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 		MaxAge:   15 * 60,
 	})
@@ -325,7 +521,7 @@ func (h *HttpHandlers) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		Value:    refreshToken,
 		HttpOnly: true,
 		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Path:     "/refresh",
 		MaxAge:   24 * 60 * 60,
 	})
@@ -371,7 +567,7 @@ func (h *HttpHandlers) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 		Value:    accessToken,
 		HttpOnly: true,
 		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 		MaxAge:   15 * 60,
 	})
@@ -380,7 +576,7 @@ func (h *HttpHandlers) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 		Value:    refreshToken,
 		HttpOnly: true,
 		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Path:     "/refresh",
 		MaxAge:   24 * 60 * 60,
 	})

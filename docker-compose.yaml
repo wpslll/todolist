@@ -20,7 +20,7 @@ services:
             - POSTGRES_USER=${POSTGRES_USER}
             - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
         volumes: 
-            - pgdata:/var/lib/postgresql
+            - todolist_pgdata:/var/lib/postgresql
         ports:
             - "5432:5432"
         healthcheck:
@@ -29,4 +29,4 @@ services:
             timeout: 5s
             retries: 5
 volumes:
-    pgdata: {}
+    todolist_pgdata: {}
